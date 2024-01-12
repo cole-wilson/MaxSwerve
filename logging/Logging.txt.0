@@ -1,0 +1,7 @@
+<17>12:36:00:005: Robot.robotInit(Robot.java:43): MaxSwerveRC-01.12.24-1
+<17>12:36:00:018: Robot.robotInit(Robot.java:45): Simulated Robot
+<17>12:36:00:036: Robot.robotInit(Robot.java:53): Robot WPILib=2024.1.1  Java=17.0.8.1
+<17>12:36:00:054: Robot.robotInit(Robot.java:54): RobotLib=4.8.0 (01.10.2024) WPILib=2024.1.1
+<17>12:36:00:113: Robot.disabledInit(Robot.java:75)
+<17>12:36:12:806: Robot.teleopInit(Robot.java:106)
+<17>12:36:16:886: Robot.disabledInit(Robot.java:75)
