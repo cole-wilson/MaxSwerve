@@ -4,13 +4,17 @@
 
 package frc.robot.subsystems;
 
+import com.ctre.phoenix.unmanaged.Unmanaged;
 import com.kauailabs.navx.frc.AHRS;
+import com.revrobotics.REVPhysicsSim;
 
 import Team4450.Lib.Util;
-
+import edu.wpi.first.hal.SimDouble;
+import edu.wpi.first.hal.simulation.SimDeviceDataJNI;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
@@ -18,6 +22,9 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.util.WPIUtilJNI;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
+import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.RobotContainer;
 import frc.utils.SwerveUtils;
@@ -49,6 +56,17 @@ public class DriveSubsystem extends SubsystemBase {
   //  private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
 
   private final AHRS m_navx = new AHRS();
+
+  private SimDouble     simAngle; // navx sim.
+
+  private ChassisSpeeds m_chassisSpeeds = new ChassisSpeeds(0.0, 0.0, 0.0);
+
+  private Pose2d        lastPose;
+
+  // Field2d object creates the field display on the simulation and gives us an API
+  // to control what is displayed (the simulated robot).
+
+  private final Field2d     field2d = new Field2d();
 
   // Slew rate filter variables for controlling lateral acceleration
   private double m_currentRotation = 0.0;
@@ -84,11 +102,22 @@ public class DriveSubsystem extends SubsystemBase {
         zeroHeading();
       } catch (Exception e) { }
     }).start();
+
+    if (RobotBase.isSimulation()) 
+    {
+      var dev = SimDeviceDataJNI.getSimDeviceHandle("navX-Sensor[0]");
+
+      simAngle = new SimDouble((SimDeviceDataJNI.getSimValueHandle(dev, "Yaw")));
+    }
+
+    SmartDashboard.putData("Field2d", field2d);
+
+    resetOdometry(new Pose2d());
   }
 
   @Override
   public void periodic() {
-    // Update the odometry in the periodic block
+    // Update the odometry
     m_odometry.update(
         Rotation2d.fromDegrees(-m_navx.getAngle()),   //m_gyro.getAngle()),
         new SwerveModulePosition[] {
@@ -97,6 +126,41 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
         });
+
+    Pose2d currentPose = getPose();
+
+    //Transform2d poseOffset = currentPose.minus(lastPose);
+    
+    lastPose = currentPose;
+
+    field2d.setRobotPose(currentPose);
+  }
+
+  /**
+   * Called on every scheduler loop when in simulation.
+   */
+  @Override
+  public void simulationPeriodic() 
+  {
+    // We are not using this call now because the REV simulation does not work
+    // correctly. Will leave the code in place in case this issue gets fixed.
+    // Assumes Neos. SIM for 500s not implemented.
+    //if (robot.isEnabled()) REVPhysicsSim.getInstance().run();
+
+     // want to simulate navX gyro changing as robot turns
+    // information available is radians per second and this happens every 20ms
+    // radians/2pi = 360 degrees so 1 degree per second is radians / 2pi
+    // increment is made every 20 ms so radian adder would be (rads/sec) *(20/1000)
+    // degree adder would be radian adder * 360/2pi
+    // so degree increment multiplier is 360/100pi = 1.1459
+
+    double temp = m_chassisSpeeds.omegaRadiansPerSecond * 1.1459155;
+
+    temp += simAngle.get();
+
+    simAngle.set(temp);
+
+    Unmanaged.feedEnable(20);
   }
 
   /**
@@ -123,6 +187,10 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         },
         pose);
+
+      lastPose = pose;
+
+      m_navx.reset();
   }
 
   /**
@@ -139,6 +207,9 @@ public class DriveSubsystem extends SubsystemBase {
   {  
     double xSpeedCommanded;
     double ySpeedCommanded;
+
+    // Have to invert for sim...not sure why.
+    if (RobotBase.isSimulation()) rot *= -1;
 
     if (rateLimit) 
     {
@@ -195,14 +266,15 @@ public class DriveSubsystem extends SubsystemBase {
     double ySpeedDelivered = ySpeedCommanded * DriveConstants.kMaxSpeedMetersPerSecond;
     double rotDelivered = m_currentRotation * DriveConstants.kMaxAngularSpeed;
 
-    SwerveModuleState swerveModuleStates[] = DriveConstants.kDriveKinematics.toSwerveModuleStates(
+    m_chassisSpeeds =
         fieldRelative
 //            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(m_gyro.getAngle()))
             ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(-m_navx.getAngle()))
-            : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
+            : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
     
-    SwerveDriveKinematics.desaturateWheelSpeeds(
-        swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
+    SwerveModuleState swerveModuleStates[] = DriveConstants.kDriveKinematics.toSwerveModuleStates(m_chassisSpeeds);
+
+    SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
     
     m_frontLeft.setDesiredState(swerveModuleStates[0]);
     m_frontRight.setDesiredState(swerveModuleStates[1]);
@@ -226,8 +298,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @param desiredStates The desired SwerveModule states.
    */
   public void setModuleStates(SwerveModuleState[] desiredStates) {
-    SwerveDriveKinematics.desaturateWheelSpeeds(
-        desiredStates, DriveConstants.kMaxSpeedMetersPerSecond);
+    SwerveDriveKinematics.desaturateWheelSpeeds(desiredStates, DriveConstants.kMaxSpeedMetersPerSecond);
 
     m_frontLeft.setDesiredState(desiredStates[0]);
     m_frontRight.setDesiredState(desiredStates[1]);
