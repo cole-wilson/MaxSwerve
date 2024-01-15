@@ -15,6 +15,7 @@ import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
@@ -25,6 +26,7 @@ import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.robot.Constants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.RobotContainer;
 import frc.utils.SwerveUtils;
@@ -35,25 +37,25 @@ public class DriveSubsystem extends SubsystemBase {
   private final MAXSwerveModule m_frontLeft = new MAXSwerveModule(
       DriveConstants.kFrontLeftDrivingCanId,
       DriveConstants.kFrontLeftTurningCanId,
-      DriveConstants.kFrontLeftChassisAngularOffset);
+      DriveConstants.kFrontLeftChassisAngularOffset, "FL");
 
   private final MAXSwerveModule m_frontRight = new MAXSwerveModule(
       DriveConstants.kFrontRightDrivingCanId,
       DriveConstants.kFrontRightTurningCanId,
-      DriveConstants.kFrontRightChassisAngularOffset);
+      DriveConstants.kFrontRightChassisAngularOffset, "FR");
 
   private final MAXSwerveModule m_rearLeft = new MAXSwerveModule(
       DriveConstants.kRearLeftDrivingCanId,
       DriveConstants.kRearLeftTurningCanId,
-      DriveConstants.kBackLeftChassisAngularOffset);
+      DriveConstants.kBackLeftChassisAngularOffset, "RL");
 
   private final MAXSwerveModule m_rearRight = new MAXSwerveModule(
       DriveConstants.kRearRightDrivingCanId,
       DriveConstants.kRearRightTurningCanId,
-      DriveConstants.kBackRightChassisAngularOffset);
+      DriveConstants.kBackRightChassisAngularOffset, "RR");
 
   // The gyro sensor
-  //  private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
+  //private final ADIS16470_IMU m_gyro = new ADIS16470_IMU();
 
   private final AHRS m_navx = new AHRS();
 
@@ -80,7 +82,7 @@ public class DriveSubsystem extends SubsystemBase {
   // Odometry class for tracking robot pose
   SwerveDriveOdometry m_odometry = new SwerveDriveOdometry(
       DriveConstants.kDriveKinematics,
-      Rotation2d.fromDegrees(-m_navx.getAngle()), //m_gyro.getAngle()),
+      Rotation2d.fromDegrees(getGyroAngleDegrees()), //m_gyro.getAngle()),
       new SwerveModulePosition[] {
           m_frontLeft.getPosition(),
           m_frontRight.getPosition(),
@@ -103,6 +105,12 @@ public class DriveSubsystem extends SubsystemBase {
       } catch (Exception e) { }
     }).start();
 
+    // Sets the module center translations from center of robot.
+   m_frontLeft.setTranslation2d(new Translation2d(DriveConstants.kTrackWidth / 2.0, DriveConstants.kTrackWidth / 2.0));
+   m_frontRight.setTranslation2d(new Translation2d(DriveConstants.kTrackWidth / 2.0, -DriveConstants.kTrackWidth / 2.0));
+   m_rearLeft.setTranslation2d(new Translation2d(-DriveConstants.kTrackWidth / 2.0, DriveConstants.kTrackWidth / 2.0));
+   m_rearRight.setTranslation2d(new Translation2d(-DriveConstants.kTrackWidth / 2.0, -DriveConstants.kTrackWidth / 2.0));
+
     if (RobotBase.isSimulation()) 
     {
       var dev = SimDeviceDataJNI.getSimDeviceHandle("navX-Sensor[0]");
@@ -118,8 +126,8 @@ public class DriveSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     // Update the odometry
-    m_odometry.update(
-        Rotation2d.fromDegrees(-m_navx.getAngle()),   //m_gyro.getAngle()),
+    Pose2d currentPose = m_odometry.update(
+        Rotation2d.fromDegrees(getGyroAngleDegrees()),   //m_gyro.getAngle()),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -127,13 +135,23 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         });
 
-    Pose2d currentPose = getPose();
+    SmartDashboard.putNumber("angle", getGyroAngleDegrees());
+
+    SmartDashboard.putString("robot pose", currentPose.toString());
 
     //Transform2d poseOffset = currentPose.minus(lastPose);
     
     lastPose = currentPose;
 
     field2d.setRobotPose(currentPose);
+    
+    // Now update the pose of each wheel (module).
+    updateModulePose(m_frontLeft);
+    updateModulePose(m_frontRight);
+    updateModulePose(m_rearLeft);
+    updateModulePose(m_rearRight);
+
+    setField2dModulePoses();
   }
 
   /**
@@ -144,7 +162,6 @@ public class DriveSubsystem extends SubsystemBase {
   {
     // We are not using this call now because the REV simulation does not work
     // correctly. Will leave the code in place in case this issue gets fixed.
-    // Assumes Neos. SIM for 500s not implemented.
     //if (robot.isEnabled()) REVPhysicsSim.getInstance().run();
 
      // want to simulate navX gyro changing as robot turns
@@ -179,7 +196,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public void resetOdometry(Pose2d pose) {
     m_odometry.resetPosition(
-        Rotation2d.fromDegrees(-m_navx.getAngle()), //m_gyro.getAngle()),
+        Rotation2d.fromDegrees(getGyroAngleDegrees()), //m_gyro.getAngle()),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
             m_frontRight.getPosition(),
@@ -266,15 +283,24 @@ public class DriveSubsystem extends SubsystemBase {
     double ySpeedDelivered = ySpeedCommanded * DriveConstants.kMaxSpeedMetersPerSecond;
     double rotDelivered = m_currentRotation * DriveConstants.kMaxAngularSpeed;
 
+    // SmartDashboard.putNumber("0 xspeed", xSpeedDelivered);
+    // SmartDashboard.putNumber("0 yspeed", ySpeedDelivered);
+    // SmartDashboard.putNumber("0 rot", rotDelivered);
+
     m_chassisSpeeds =
         fieldRelative
-//            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(m_gyro.getAngle()))
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(-m_navx.getAngle()))
+//           ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(m_gyro.getAngle()))
+            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(getGyroAngleDegrees()))
             : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered);
-    
+
+    // SmartDashboard.putNumber("0 vxspeed", m_chassisSpeeds.vxMetersPerSecond);
+    // SmartDashboard.putNumber("0 vyspeed", m_chassisSpeeds.vyMetersPerSecond);
+
     SwerveModuleState swerveModuleStates[] = DriveConstants.kDriveKinematics.toSwerveModuleStates(m_chassisSpeeds);
 
     SwerveDriveKinematics.desaturateWheelSpeeds(swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
+
+    //SmartDashboard.putNumber("0 fl spd", swerveModuleStates[0].speedMetersPerSecond);
     
     m_frontLeft.setDesiredState(swerveModuleStates[0]);
     m_frontRight.setDesiredState(swerveModuleStates[1]);
@@ -336,6 +362,68 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getTurnRate() {
     //return m_gyro.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
-    return -m_navx.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
+    return -m_navx.getRate(); // * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
   }
+  
+  /**
+   * Get Gyro angle in degrees.
+   * @return Angle in degrees. 0 to +- 180.
+   */
+  public double getGyroAngleDegrees() 
+  {
+    double angle = Math.IEEEremainder((-m_navx.getAngle()), 360);
+    SmartDashboard.putNumber("0 gyroangle", angle);
+    return angle;
+  }
+  
+  /**
+   * Get gyro yaw from the angle of the robot at last gyro reset.
+   * @return Rotation2D containing Gyro yaw in radians. + is left of zero (ccw) - is right (cw).
+   */
+  public Rotation2d getGyroRotation2d() 
+  {
+    if (m_navx.isMagnetometerCalibrated()) 
+    {
+     // We will only get valid fused headings if the magnetometer is calibrated
+     return Rotation2d.fromDegrees(m_navx.getFusedHeading());
+    }
+
+    // We have to invert the angle of the NavX so that rotating the robot counter-clockwise makes the angle increase.
+    //return Rotation2d.fromDegrees(360.0 - m_navx.getYaw());
+    return Rotation2d.fromDegrees(-m_navx.getYaw());
+  }
+
+  /**
+   * Update the pose of a swerve module on the field2d object. Module
+   * pose is connected to the robot pose so they move together on the
+   * field simulation display.
+   * @param module Swerve module to update.
+   */
+  private void updateModulePose(MAXSwerveModule module)
+  {
+    Translation2d modulePosition = module.getTranslation2d()
+        //.rotateBy(getHeadingRotation2d())
+        .rotateBy(getPose().getRotation())
+        .plus(getPose().getTranslation());
+    
+    module.setModulePose(
+        new Pose2d(modulePosition, module.getHeading2d().plus(Rotation2d.fromDegrees(getGyroAngleDegrees()))));
+  }
+
+  /**
+   * Rotates the module icons on the field display to indicate where
+   * the wheel is pointing.
+   */
+  private void setField2dModulePoses()
+  {
+    Pose2d      modulePoses[] = new Pose2d[4];
+    
+    modulePoses[0] = m_frontLeft.getPose();
+    modulePoses[1] = m_frontRight.getPose();
+    modulePoses[2] = m_rearLeft.getPose();
+    modulePoses[3] = m_rearRight.getPose();
+
+    field2d.getObject("Swerve Modules").setPoses(modulePoses);
+  }
+
 }

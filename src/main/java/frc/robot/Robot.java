@@ -30,9 +30,6 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
-    // autonomous chooser on the dashboard.
-    m_robotContainer = new RobotContainer();
     
     // Set up our custom logger.
 
@@ -42,8 +39,10 @@ public class Robot extends TimedRobot {
 
     Util.consoleLog("%s", Constants.kProgramName);
 
-    if (RobotBase.isSimulation()) Util.consoleLog("Simulated Robot");
-    if (RobotBase.isReal()) Util.consoleLog("Real Robot");
+    if (RobotBase.isSimulation()) 
+      Util.consoleLog("Simulated Robot");
+    else
+      Util.consoleLog("Real Robot");
     
     // Send program version to the dashboard.
     SmartDashboard.putString("Program", Constants.kProgramName);
@@ -52,6 +51,10 @@ public class Robot extends TimedRobot {
     // than robot WPILib version. Should be the same for best results.
     Util.consoleLog("Robot WPILib=%s  Java=%s", WPILibVersion.Version, System.getProperty("java.version"));
     Util.consoleLog("RobotLib=%s", LibraryVersion.version);
+
+    // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
+    // autonomous chooser on the dashboard.
+    m_robotContainer = new RobotContainer();
   }
 
   /**

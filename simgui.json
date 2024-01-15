@@ -6,8 +6,17 @@
     },
     "windows": {
       "/SmartDashboard/Field2d": {
+        "Robot": {
+          "length": 0.7369999885559082,
+          "width": 0.7365999817848206
+        },
+        "Swerve Modules": {
+          "image": "resources/swerve_module.png",
+          "length": 0.4000000059604645,
+          "width": 0.4000000059604645
+        },
         "bottom": 544,
-        "builtin": "2023 Charged Up",
+        "builtin": "2024 Crescendo",
         "height": 8.013679504394531,
         "left": 46,
         "right": 1088,
@@ -22,14 +31,14 @@
   "NetworkTables": {
     "transitory": {
       "Shuffleboard": {
+        ".recording": {
+          "open": true
+        },
         "open": true
       },
       "SmartDashboard": {
         "open": true
       }
     }
-  },
-  "NetworkTables Info": {
-    "visible": true
   }
 }

@@ -4,11 +4,15 @@
 
 package frc.robot.subsystems;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.EncoderType;
@@ -32,16 +36,22 @@ public class MAXSwerveModule {
   private final SparkMaxPIDController m_turningPIDController;
 
   private double            m_chassisAngularOffset = 0;
-  private SwerveModuleState m_desiredState = new SwerveModuleState(0.0, new Rotation2d());
+  //private SwerveModuleState m_desiredState = new SwerveModuleState(0.0, new Rotation2d());
 
-  private double            currentSimVelocity, currentSimPosition;
+  private double            currentSimVelocity, currentSimPosition, currentSimAngle;
+  private String            moduleLocation;
+  private Pose2d            pose;
+  private Translation2d     translation2d;
+
   /**
    * Constructs a MAXSwerveModule and configures the driving and turning motor,
    * encoder, and PID controller. This configuration is specific to the REV
    * MAXSwerve Module built with NEOs, SPARKS MAX, and a Through Bore
    * Encoder.
    */
-  public MAXSwerveModule(int drivingCANId, int turningCANId, double chassisAngularOffset) {
+  public MAXSwerveModule(int drivingCANId, int turningCANId, double chassisAngularOffset, String moduleLocation) {
+    this. moduleLocation = moduleLocation;
+
     m_drivingSparkMax = new CANSparkMax(drivingCANId, MotorType.kBrushless);
     m_turningSparkMax = new CANSparkMax(turningCANId, MotorType.kBrushless);
 
@@ -111,8 +121,13 @@ public class MAXSwerveModule {
     m_turningSparkMax.burnFlash();
 
     m_chassisAngularOffset = chassisAngularOffset;
-    m_desiredState.angle = new Rotation2d(m_turningEncoder.getPosition());
-    m_drivingEncoder.setPosition(0);
+    
+    // if (RobotBase.isSimulation())
+    //   m_desiredState.angle = new Rotation2d();
+    // else
+    //   m_desiredState.angle = new Rotation2d(m_turningEncoder.getPosition());
+    
+      m_drivingEncoder.setPosition(0);
     
     if (RobotBase.isSimulation()) 
     {
@@ -140,8 +155,8 @@ public class MAXSwerveModule {
           new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
     else
       return new SwerveModuleState(currentSimVelocity,
-          new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
-  }
+          new Rotation2d(currentSimAngle - m_chassisAngularOffset));
+  } 
 
   /**
    * Returns the current position of the module.
@@ -151,14 +166,21 @@ public class MAXSwerveModule {
   public SwerveModulePosition getPosition() {
     // Apply chassis angular offset to the encoder position to get the position
     // relative to the chassis.
+    SwerveModulePosition  position;
+
     if (RobotBase.isReal())
-      return new SwerveModulePosition(
+      position = new SwerveModulePosition(
           m_drivingEncoder.getPosition(),
           new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
     else
-      return new SwerveModulePosition(
+      position = new SwerveModulePosition(
           currentSimPosition,
-          new Rotation2d(m_turningEncoder.getPosition() - m_chassisAngularOffset));
+          new Rotation2d(currentSimAngle - m_chassisAngularOffset));
+    
+    SmartDashboard.putNumber(moduleLocation + " curpos meters", position.distanceMeters);
+    SmartDashboard.putNumber(moduleLocation + " curpos angle", position.angle.getDegrees());
+
+    return position;
   }
 
   /**
@@ -180,20 +202,55 @@ public class MAXSwerveModule {
     m_drivingPIDController.setReference(optimizedDesiredState.speedMetersPerSecond, CANSparkMax.ControlType.kVelocity);
     m_turningPIDController.setReference(optimizedDesiredState.angle.getRadians(), CANSparkMax.ControlType.kPosition);
 
-    m_desiredState = desiredState;
+    currentSimAngle = optimizedDesiredState.angle.getRadians();
 
     currentSimVelocity = optimizedDesiredState.speedMetersPerSecond;
     
     double distancePer20Ms = currentSimVelocity / 50.0;
 
-    //if (currentSimVelocity > 0)
-        currentSimPosition += distancePer20Ms;
-    //else
-    //    currentSimPosition -= distancePer20Ms;
+    //SmartDashboard.putNumber(moduleLocation + " sim vel", currentSimVelocity);
+
+    currentSimPosition += distancePer20Ms;
   }
 
   /** Zeroes all the SwerveModule encoders. */
   public void resetEncoders() {
     m_drivingEncoder.setPosition(0);
+  }
+
+  public void setModulePose(Pose2d pose) 
+  {
+      this.pose = pose;
+  }
+
+  public Pose2d getPose()
+  {
+      SmartDashboard.putString(moduleLocation + " pose", pose.toString());
+
+      return pose;
+  }
+  
+  public Rotation2d getHeading2d() 
+  {
+      Rotation2d  rot;
+
+      if (RobotBase.isReal())
+          rot = new Rotation2d(m_turningEncoder.getPosition());
+      else
+          rot = new Rotation2d(currentSimAngle);
+
+      SmartDashboard.putNumber(moduleLocation + " hdng", rot.getDegrees());
+
+      return rot;
+  }
+
+  public void setTranslation2d(Translation2d translation) 
+  {
+      translation2d = translation;            
+  }
+
+  public Translation2d getTranslation2d() 
+  {
+      return translation2d;
   }
 }
