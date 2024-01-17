@@ -2,7 +2,9 @@
   "NTProvider": {
     "types": {
       "/FMSInfo": "FMSInfo",
-      "/SmartDashboard/Field2d": "Field2d"
+      "/SmartDashboard/Field2d": "Field2d",
+      "/SmartDashboard/track_pose": "Field2d",
+      "/SmartDashboard/turret_pid": "PIDController"
     },
     "windows": {
       "/SmartDashboard/Field2d": {
@@ -40,5 +42,8 @@
         "open": true
       }
     }
+  },
+  "NetworkTables Info": {
+    "visible": true
   }
 }

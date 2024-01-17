@@ -237,7 +237,7 @@ public class MAXSwerveModule {
       if (RobotBase.isReal())
           rot = new Rotation2d(m_turningEncoder.getPosition());
       else
-          rot = new Rotation2d(currentSimAngle);
+          rot = new Rotation2d(currentSimAngle - m_chassisAngularOffset);
 
       SmartDashboard.putNumber(moduleLocation + " hdng", rot.getDegrees());
 

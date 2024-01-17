@@ -21,8 +21,11 @@ import frc.robot.Constants.OIConstants;
 import frc.robot.subsystems.DriveSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.RunCommand;
+import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+
 import java.util.List;
 
 /*
@@ -54,6 +57,7 @@ public class RobotContainer {
                 -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
                 -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
                 -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
+                -MathUtil.applyDeadband(m_driverController.getRightY(), OIConstants.kDriveDeadband),
                 true, false),
             m_robotDrive));
   }
@@ -68,10 +72,50 @@ public class RobotContainer {
    * {@link JoystickButton}.
    */
   private void configureButtonBindings() {
-    new JoystickButton(m_driverController, Button.kR1.value)
+    // top left bumper brakes and sets X pattern to stop movement
+    new JoystickButton(m_driverController, Button.kL1.value)
         .whileTrue(new RunCommand(
             () -> m_robotDrive.setX(),
             m_robotDrive));
+    
+    // holding top right bumper enables the alternate rotation mode in
+    // which the driver points stick to desired heading
+    new JoystickButton(m_driverController, Button.kR1.value)
+        .whileTrue(new StartEndCommand(
+            m_robotDrive::enableAlternateRotation,
+            m_robotDrive::disableAlternateRotation));
+    
+    // the "A" button (or cross on PS4 controller) toggles tracking mode
+    new JoystickButton(m_driverController, Button.kCross.value)
+        .toggleOnTrue(new StartEndCommand(
+            m_robotDrive::enable_tracking,
+            m_robotDrive::disable_tracking));
+    
+    // POV buttons do same as alternate driving mode but without any lateral
+    // movement and increments of 45deg
+    new Trigger(()->m_driverController.getPOV()!=-1)
+        .whileTrue(new RunCommand(
+            () -> m_robotDrive.drive_to_face(
+                0,0,
+                povToHeading(m_driverController.getPOV()),
+                true,true
+            ), m_robotDrive));
+  }
+
+   /**
+   * Convert a POV reading (in degrees) to heading (-pi/2 to 0 to pi/2)
+   *
+   * @param pov         the POV value
+   * @return the heading in radians
+   */
+  private double povToHeading(double pov) {
+    double radians = Math.toRadians(pov);
+    if (radians < -Math.PI) {
+        double overshoot = radians + Math.PI;
+        radians = -overshoot;
+    }
+    radians *= -1;
+    return radians;
   }
 
   /**
