@@ -153,6 +153,13 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearRight.getPosition()
         });
 
+    double[] swerve_states = {
+      m_frontLeft.getState().angle.getDegrees(), m_frontLeft.getState().speedMetersPerSecond,
+      m_frontRight.getState().angle.getDegrees(), m_frontRight.getState().speedMetersPerSecond,
+      m_rearLeft.getState().angle.getDegrees(), m_rearLeft.getState().speedMetersPerSecond,
+      m_frontRight.getState().angle.getDegrees(), m_frontRight.getState().speedMetersPerSecond,
+    };
+    SmartDashboard.putNumberArray("states", swerve_states);
     SmartDashboard.putNumber("angle", getGyroAngleDegrees());
 
     SmartDashboard.putString("robot pose", currentPose.toString());
