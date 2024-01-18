@@ -409,7 +409,7 @@ public class DriveSubsystem extends SubsystemBase {
 
   /**
    * Sets the wheels into an X formation to prevent movement.
-   */
+   */ 
   public void setX() {
     m_frontLeft.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(45)));
     m_frontRight.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(-45)));
@@ -451,7 +451,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @return the robot's heading in degrees, from -180 to 180
    */
   public double getHeading() {
-    return Rotation2d.fromDegrees(-m_navx.getAngle()).getDegrees();  //m_gyro.getAngle()).getDegrees();
+    return Rotation2d.fromDegrees(m_navx.getAngle()).getDegrees();  //m_gyro.getAngle()).getDegrees();
   }
 
   /**
@@ -461,7 +461,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getTurnRate() {
     //return m_gyro.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
-    return -m_navx.getRate(); // * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
+    return m_navx.getRate(); // * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
   }
   
   /**
@@ -470,7 +470,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getGyroAngleDegrees() 
   {
-    double angle = Math.IEEEremainder((-m_navx.getAngle()), 360);
+    double angle = Math.IEEEremainder((m_navx.getAngle()), 360);
     SmartDashboard.putNumber("0 gyroangle", angle);
     return angle;
   }
@@ -489,7 +489,7 @@ public class DriveSubsystem extends SubsystemBase {
 
     // We have to invert the angle of the NavX so that rotating the robot counter-clockwise makes the angle increase.
     //return Rotation2d.fromDegrees(360.0 - m_navx.getYaw());
-    return Rotation2d.fromDegrees(-m_navx.getYaw());
+    return Rotation2d.fromDegrees(m_navx.getYaw());
   }
 
   /**
