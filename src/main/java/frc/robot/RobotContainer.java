@@ -21,6 +21,7 @@ import frc.robot.Constants.OIConstants;
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subsystems.Shooter;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
@@ -29,6 +30,8 @@ import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import java.util.List;
+
+import com.kauailabs.navx.frc.AHRS;
 
 /*
  * This class is where the bulk of the robot should be declared.  Since Command-based is a
@@ -40,10 +43,11 @@ public class RobotContainer {
   // The robot's subsystems
   private final DriveSubsystem m_robotDrive = new DriveSubsystem();
   private final Shooter m_robotShooter = new Shooter();
+  private final AHRS m_navx = new AHRS();
 
   // The driver's controller
   XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
-  CommandXboxController m_manipulatorController = new CommandXboxController(OIConstants.kManipulatorControllerPort);
+  XboxController m_manipulatorController = new XboxController(OIConstants.kManipulatorControllerPort);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -84,16 +88,24 @@ public class RobotContainer {
     
     // holding top right bumper enables the alternate rotation mode in
     // which the driver points stick to desired heading
-    new JoystickButton(m_driverController, Button.kR1.value)
-        .whileTrue(new StartEndCommand(
-            m_robotDrive::enableAlternateRotation,
-            m_robotDrive::disableAlternateRotation));
+    // new JoystickButton(m_driverController, Button.kR1.value)
+    //     .whileTrue(new StartEndCommand(
+    //         m_robotDrive::enableAlternateRotation,
+    //         m_robotDrive::disableAlternateRotation));
     
     // the "A" button (or cross on PS4 controller) toggles tracking mode
     new JoystickButton(m_driverController, Button.kCross.value)
         .toggleOnTrue(new StartEndCommand(
             m_robotDrive::enable_tracking,
             m_robotDrive::disable_tracking));
+    
+     new JoystickButton(m_driverController, Button.kCross.value)
+        .toggleOnTrue(new StartEndCommand(
+            m_navx::reset,
+            m_robotDrive::disable_tracking));
+    
+            
+    
     
     // POV buttons do same as alternate driving mode but without any lateral
     // movement and increments of 45deg
@@ -105,7 +117,7 @@ public class RobotContainer {
                 true,true
             ), m_robotDrive));
     
-    m_manipulatorController.rightTrigger(0.1).whileTrue(new StartEndCommand(
+    new JoystickButton(m_manipulatorController, Button.kR1.value).whileTrue(new StartEndCommand(
         m_robotShooter::start, m_robotShooter::stop, m_robotShooter));
   }
 

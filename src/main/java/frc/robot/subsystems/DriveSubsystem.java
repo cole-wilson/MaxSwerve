@@ -67,7 +67,7 @@ public class DriveSubsystem extends SubsystemBase {
   private Pose2d        lastPose;
 
   // begin added by cole ======================================
-    private PIDController turret_pid = new PIDController(1, 0, 0);
+    private PIDController turret_pid = new PIDController(0.2, 0.3, 0);
     private boolean alternate_rotation = false;
     private boolean is_tracking = false;
     // I used a second Field2d to get the AdvantageScope tool to show the position the robot is tracking to
@@ -433,6 +433,8 @@ public class DriveSubsystem extends SubsystemBase {
 
   /** Resets the drive encoders to currently read a position of 0. */
   public void resetEncoders() {
+    Util.consoleLog("reset button pressed");
+    zeroHeading();
     m_frontLeft.resetEncoders();
     m_rearLeft.resetEncoders();
     m_frontRight.resetEncoders();
@@ -451,7 +453,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @return the robot's heading in degrees, from -180 to 180
    */
   public double getHeading() {
-    return Rotation2d.fromDegrees(m_navx.getAngle()).getDegrees();  //m_gyro.getAngle()).getDegrees();
+    return Rotation2d.fromDegrees(-m_navx.getAngle()).getDegrees();  //m_gyro.getAngle()).getDegrees();
   }
 
   /**
@@ -461,7 +463,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getTurnRate() {
     //return m_gyro.getRate() * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
-    return m_navx.getRate(); // * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
+    return -m_navx.getRate(); // * (DriveConstants.kGyroReversed ? -1.0 : 1.0);
   }
   
   /**
@@ -470,7 +472,7 @@ public class DriveSubsystem extends SubsystemBase {
    */
   public double getGyroAngleDegrees() 
   {
-    double angle = Math.IEEEremainder((m_navx.getAngle()), 360);
+    double angle = Math.IEEEremainder((-m_navx.getAngle()), 360);
     SmartDashboard.putNumber("0 gyroangle", angle);
     return angle;
   }
@@ -489,7 +491,7 @@ public class DriveSubsystem extends SubsystemBase {
 
     // We have to invert the angle of the NavX so that rotating the robot counter-clockwise makes the angle increase.
     //return Rotation2d.fromDegrees(360.0 - m_navx.getYaw());
-    return Rotation2d.fromDegrees(m_navx.getYaw());
+    return Rotation2d.fromDegrees(-m_navx.getYaw());
   }
 
   /**
